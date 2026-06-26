@@ -76,6 +76,7 @@ def save_giveaways():
         gw_copy['entries'] = list(gw['entries'])
         gw_copy['winners_list'] = list(gw.get('winners_list', []))
         gw_copy['claimed'] = list(gw.get('claimed', []))
+        gw_copy['all_time_winners'] = list(gw.get('all_time_winners', []))
         data[str(msg_id)] = gw_copy
     with open(DATA_FILE, 'w') as f:
         json.dump(data, f, indent=2)
@@ -92,6 +93,7 @@ def load_giveaways():
         gw_data['entries'] = set(gw_data['entries'])
         gw_data['winners_list'] = set(gw_data.get('winners_list', []))
         gw_data['claimed'] = set(gw_data.get('claimed', []))
+        gw_data['all_time_winners'] = set(gw_data.get('all_time_winners', []))
         giveaways[msg_id] = gw_data
 
 # -------------------------------------------------------------------
@@ -251,7 +253,8 @@ class GiveawayModal(discord.ui.Modal, title="Create a Giveaway"):
             'ended': False,
             'winners_list': set(),
             'claimed': set(),
-            'reroll_button_added': False
+            'reroll_button_added': False,
+            'all_time_winners': set()   # new field
         }
         save_giveaways()
 
@@ -288,13 +291,17 @@ async def greroll(interaction: discord.Interaction, message_id: Optional[int] = 
             return
 
     gw = giveaways.get(message_id)
-    participant_ids = gw['entries'] - gw.get('winners_list', set())
+    # Exclude all past winners (permanent exclusion)
+    all_winners = gw.get('all_time_winners', set())
+    participant_ids = gw['entries'] - all_winners
     if not participant_ids:
-        await interaction.response.send_message("No eligible participants for a reroll.", ephemeral=True)
+        await interaction.response.send_message("No eligible participants for a reroll (all past winners are excluded).", ephemeral=True)
         return
 
     new_winner_id = random.choice(list(participant_ids))
+    # Add to winners_list and all_time_winners
     gw.setdefault('winners_list', set()).add(new_winner_id)
+    gw.setdefault('all_time_winners', set()).add(new_winner_id)
     save_giveaways()
     await interaction.response.send_message(f"🎉 New winner from the giveaway **{gw['prize']}**: <@{new_winner_id}>!")
 
@@ -432,7 +439,6 @@ class ClaimTicketButton(discord.ui.Button):
                 topic=str(self.message_id)
             )
 
-            # Pings + embed ticket message
             pings = f"{winner.mention} {host_mention}"
             embed = discord.Embed(
                 title="Ticket Created",
@@ -491,14 +497,20 @@ class RerollButton(discord.ui.Button):
             await interaction.response.send_message("All winners have already claimed.", ephemeral=True)
             return
 
-        eligible = gw['entries'] - gw['winners_list']
+        # Permanent exclusion: never let old winners win again
+        all_winners = gw.get('all_time_winners', set())
+        eligible = gw['entries'] - all_winners
         if len(eligible) < len(unclaimed):
-            await interaction.response.send_message("Not enough eligible participants to replace all unclaimed winners.", ephemeral=True)
+            await interaction.response.send_message("Not enough eligible participants to replace all unclaimed winners (past winners excluded).", ephemeral=True)
             return
 
         new_winners = set(random.sample(list(eligible), len(unclaimed)))
+        # Update winners_list: remove unclaimed, add new_winners
         gw['winners_list'] = (gw['winners_list'] - unclaimed) | new_winners
-        gw['claimed'] = gw['claimed'] - unclaimed
+        # Add new winners to all_time_winners (old unclaimed remain in all_time_winners, as they were already there)
+        gw.setdefault('all_time_winners', set()).update(new_winners)
+        # Unclaimed winners stay in all_time_winners – they are permanently excluded
+        gw['claimed'] = gw['claimed'] - unclaimed  # just in case any unclaimed was somehow marked claimed (shouldn't)
         gw['reroll_button_added'] = True
         save_giveaways()
 
@@ -551,6 +563,9 @@ async def end_giveaway(msg_id: int):
     total_entries = len(participant_ids)
     winners_count = min(gw['winners'], total_entries)
     winner_ids = set(random.sample(participant_ids, winners_count)) if winners_count > 0 else set()
+
+    # Mark initial winners as all-time winners
+    gw['all_time_winners'] = gw.get('all_time_winners', set()) | winner_ids
 
     embed = message.embeds[0] if message.embeds else discord.Embed()
     embed.title = f"{gw['prize']} – Ended"
@@ -656,7 +671,6 @@ async def on_ready():
     load_giveaways()
     print(f"Loaded {len(giveaways)} giveaway(s).")
 
-    # Set static presence
     await bot.change_presence(
         activity=discord.Activity(type=discord.ActivityType.playing, name="Managing giveaways")
     )
