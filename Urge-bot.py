@@ -2998,7 +2998,7 @@ async def gstats_stats_cmd(interaction: discord.Interaction):
 def create_rank_card(username, avatar_bytes, current_xp, next_xp, level, rank):
     width = 900
     height = 250
-    img = Image.new("RGBA", (width, height), (35, 39, 42, 255))
+    img = Image.new("RGBA", (width, height), (255, 215, 0, 255))
     draw = ImageDraw.Draw(img)
     
     try:
@@ -3008,31 +3008,31 @@ def create_rank_card(username, avatar_bytes, current_xp, next_xp, level, rank):
         font = ImageFont.load_default()
         font_small = ImageFont.load_default()
 
-    draw.rounded_rectangle([0, 0, width, height], radius=20, fill=(35, 39, 42, 255))
+    draw.rounded_rectangle([0, 0, width, height], radius=20, fill=(255, 215, 0, 255))
     
     if avatar_bytes:
         try:
             avatar = Image.open(BytesIO(avatar_bytes)).convert("RGBA")
-            avatar = avatar.resize((150, 150))
+            avatar = avatar.resize((100, 100))
             
-            mask = Image.new("L", (150, 150), 0)
+            mask = Image.new("L", (100, 100), 0)
             mask_draw = ImageDraw.Draw(mask)
-            mask_draw.ellipse((0, 0, 150, 150), fill=255)
+            mask_draw.ellipse((0, 0, 100, 100), fill=255)
             
-            img.paste(avatar, (50, 50), mask)
+            img.paste(avatar, (50, 25), mask)
             
-            draw.ellipse((46, 46, 204, 204), outline="white", width=4)
+            draw.ellipse((46, 21, 154, 129), outline="white", width=4)
         except Exception:
             pass
 
-    draw.text((230, 60), str(username), font=font, fill="white")
+    draw.text((230, 40), str(username), font=font, fill="black")
     
     bar_x = 230
     bar_y = 160
     bar_width = 600
     bar_height = 30
     
-    draw.rounded_rectangle([bar_x, bar_y, bar_x + bar_width, bar_y + bar_height], radius=15, fill=(72, 75, 78, 255))
+    draw.rounded_rectangle([bar_x, bar_y, bar_x + bar_width, bar_y + bar_height], radius=15, fill=(200, 170, 0, 255))
     
     progress = 0
     if next_xp > 0:
@@ -3040,9 +3040,9 @@ def create_rank_card(username, avatar_bytes, current_xp, next_xp, level, rank):
     
     fill_width = int(bar_width * progress)
     if fill_width > 0:
-        draw.rounded_rectangle([bar_x, bar_y, bar_x + fill_width, bar_y + bar_height], radius=15, fill="#ffcc00")
+        draw.rounded_rectangle([bar_x, bar_y, bar_x + fill_width, bar_y + bar_height], radius=15, fill=(35, 39, 42, 255))
         
-    draw.text((230, 120), f"Level {level} | Rank #{rank}", font=font_small, fill="white")
+    draw.text((230, 120), f"Level {level} | Rank #{rank}", font=font_small, fill="black")
     
     xp_text = f"{current_xp} / {next_xp} XP"
     try:
@@ -3050,7 +3050,7 @@ def create_rank_card(username, avatar_bytes, current_xp, next_xp, level, rank):
         text_w = bbox[2] - bbox[0]
     except:
         text_w = len(xp_text) * 12
-    draw.text((bar_x + bar_width - text_w, 120), xp_text, font=font_small, fill="white")
+    draw.text((bar_x + bar_width - text_w, 120), xp_text, font=font_small, fill="black")
 
     buffer = BytesIO()
     img.save(buffer, format="PNG")
