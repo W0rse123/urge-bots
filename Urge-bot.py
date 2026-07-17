@@ -49,6 +49,18 @@ from dotenv import load_dotenv
 from google import genai
 
 # -------------------------------------------------------------------
+if not os.path.exists(".env"):
+    if os.path.exists(".env.example"):
+        import shutil
+        shutil.copy(".env.example", ".env")
+        print("Auto-generated .env from .env.example. Please fill in your tokens and restart.")
+    else:
+        with open(".env", "w", encoding="utf-8") as f:
+            f.write("DISCORD_TOKEN=YOUR_BOT_TOKEN_HERE\n")
+        print("Auto-generated a blank .env file. Please fill in your tokens and restart.")
+    import sys
+    sys.exit(1)
+
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
@@ -134,10 +146,16 @@ def load_tiktok_data():
     else:
         tiktok_data = {}
 
-def save_tiktok_data():
+def save_tiktok_data_sync():
     os.makedirs(os.path.dirname(TIKTOK_DATA_FILE), exist_ok=True)
     with open(TIKTOK_DATA_FILE, "w") as f:
         json.dump(tiktok_data, f, indent=4)
+
+def save_tiktok_data():
+    try:
+        asyncio.get_running_loop().run_in_executor(None, save_tiktok_data_sync)
+    except RuntimeError:
+        save_tiktok_data_sync()
 
 APPLICATIONS_DATA_FILE = "data/applications.json"
 applications_data: dict = {}
@@ -154,10 +172,16 @@ def load_applications_data():
     else:
         applications_data = {}
 
-def save_applications_data():
+def save_applications_data_sync():
     os.makedirs(os.path.dirname(APPLICATIONS_DATA_FILE), exist_ok=True)
     with open(APPLICATIONS_DATA_FILE, "w") as f:
         json.dump(applications_data, f, indent=4)
+
+def save_applications_data():
+    try:
+        asyncio.get_running_loop().run_in_executor(None, save_applications_data_sync)
+    except RuntimeError:
+        save_applications_data_sync()
 
 LEVELS_DATA_FILE = "data/levels.json"
 levels_data: dict = {}
@@ -174,10 +198,16 @@ def load_levels_data():
     else:
         levels_data = {}
 
-def save_levels_data():
+def save_levels_data_sync():
     os.makedirs(os.path.dirname(LEVELS_DATA_FILE), exist_ok=True)
     with open(LEVELS_DATA_FILE, "w") as f:
         json.dump(levels_data, f, indent=4)
+
+def save_levels_data():
+    try:
+        asyncio.get_running_loop().run_in_executor(None, save_levels_data_sync)
+    except RuntimeError:
+        save_levels_data_sync()
 
 def xp_for_level(level):
     return 5 * (level ** 2) + 50 * level + 100
@@ -207,10 +237,16 @@ def load_server_config():
     else:
         server_config = {}
 
-def save_server_config():
+def save_server_config_sync():
     os.makedirs(os.path.dirname(SERVER_CONFIG_FILE), exist_ok=True)
     with open(SERVER_CONFIG_FILE, "w") as f:
         json.dump(server_config, f, indent=4)
+
+def save_server_config():
+    try:
+        asyncio.get_running_loop().run_in_executor(None, save_server_config_sync)
+    except RuntimeError:
+        save_server_config_sync()
 
 def log_spawner_transaction(user: discord.Member, action: str, spawner_name: str, quantity: int, total_price: str):
     import os
@@ -567,10 +603,11 @@ async def perform_reroll(interaction: discord.Interaction, msg_id: int, gw: dict
     gw['reroll_button_added'] = False
     save_giveaways()
 
-    try:
-        await interaction.message.delete()
-    except Exception as e:
-        print(f"Failed to delete original message on reroll: {e}")
+    if interaction.message:
+        try:
+            await interaction.message.delete()
+        except Exception as e:
+            print(f"Failed to delete original message on reroll: {e}")
 
     channel = interaction.channel
     old_mentions = " ".join(f"<@{uid}>" for uid in unclaimed)
@@ -3013,8 +3050,8 @@ def create_rank_card(username, avatar_bytes, current_xp, next_xp, level, rank):
     draw = ImageDraw.Draw(img)
     
     try:
-        font = ImageFont.truetype("arial.ttf", 36)
-        font_small = ImageFont.truetype("arial.ttf", 24)
+        font = ImageFont.truetype("data/fonts/Roboto-Regular.ttf", 36)
+        font_small = ImageFont.truetype("data/fonts/Roboto-Regular.ttf", 24)
     except IOError:
         font = ImageFont.load_default()
         font_small = ImageFont.load_default()
@@ -3408,8 +3445,8 @@ async def generate_welcome_image(member: discord.Member, count: int) -> discord.
 
     # 6. Text Rendering
     try:
-        font_large = ImageFont.truetype("C:\\Windows\\Fonts\\arialbd.ttf", 36)
-        font_small = ImageFont.truetype("C:\\Windows\\Fonts\\arialbd.ttf", 28)
+        font_large = ImageFont.truetype("data/fonts/Roboto-Regular.ttf", 36)
+        font_small = ImageFont.truetype("data/fonts/Roboto-Regular.ttf", 28)
     except:
         font_large = ImageFont.load_default()
         font_small = ImageFont.load_default()
